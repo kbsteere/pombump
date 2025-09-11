@@ -50,7 +50,7 @@ Examples:
 			// Analyze the project (with property search if requested)
 			var analysis *pkg.AnalysisResult
 			var err error
-			
+
 			if analyzeFlags.searchProperties {
 				// Use enhanced analysis that searches for properties
 				analysis, err = pkg.AnalyzeProjectPath(cmd.Context(), args[0])
@@ -63,46 +63,61 @@ Examples:
 				if err != nil {
 					return fmt.Errorf("failed to parse POM file: %w", err)
 				}
-				
+
 				analysis, err = pkg.AnalyzeProject(cmd.Context(), parsedPom)
 				if err != nil {
 					return fmt.Errorf("failed to analyze project: %w", err)
 				}
 			}
 
-			// If patches are provided, analyze them
+			// Process patches if provided
+			var directPatches []pkg.Patch
+			var propertyPatches map[string]string
+
 			if analyzeFlags.patches != "" || analyzeFlags.patchFile != "" {
 				patches, err := pkg.ParsePatches(cmd.Context(), analyzeFlags.patchFile, analyzeFlags.patches)
 				if err != nil {
 					return fmt.Errorf("failed to parse patches: %w", err)
 				}
 
-				directPatches, propertyPatches := pkg.PatchStrategy(cmd.Context(), analysis, patches)
+				directPatches, propertyPatches = pkg.PatchStrategy(cmd.Context(), analysis, patches)
+			}
 
-				// Output recommendations
-				if analyzeFlags.outputFormat == "yaml" {
-					outputYAML(directPatches, propertyPatches)
-				} else {
-					outputAnalysisReport(analysis, directPatches, propertyPatches)
-				}
+			// Convert to structured output format
+			output := analysis.ToAnalysisOutput(args[0], directPatches, propertyPatches)
 
-				// Write files if requested
-				if analyzeFlags.outputDeps != "" && len(directPatches) > 0 {
-					if err := writeDepsFile(analyzeFlags.outputDeps, directPatches); err != nil {
-						return fmt.Errorf("failed to write deps file: %w", err)
-					}
-					fmt.Printf("\nWrote %d patches to %s\n", len(directPatches), analyzeFlags.outputDeps)
-				}
-
-				if analyzeFlags.outputProperties != "" && len(propertyPatches) > 0 {
-					if err := writePropertiesFile(analyzeFlags.outputProperties, propertyPatches); err != nil {
-						return fmt.Errorf("failed to write properties file: %w", err)
-					}
-					fmt.Printf("Wrote %d properties to %s\n", len(propertyPatches), analyzeFlags.outputProperties)
+			// Handle different output formats
+			if analyzeFlags.outputFormat == "json" || analyzeFlags.outputFormat == "yaml" {
+				// Use structured output
+				err = output.Write(analyzeFlags.outputFormat, os.Stdout)
+				if err != nil {
+					return fmt.Errorf("failed to write output: %w", err)
 				}
 			} else {
-				// Just output the analysis report
-				fmt.Println(analysis.AnalysisReport())
+				// Use human-readable output
+				err = output.Write("human", os.Stdout)
+				if err != nil {
+					return fmt.Errorf("failed to write output: %w", err)
+				}
+			}
+
+			// Write patch files if requested (backward compatibility)
+			if analyzeFlags.outputDeps != "" && len(directPatches) > 0 {
+				if err := writeDepsFile(analyzeFlags.outputDeps, directPatches); err != nil {
+					return fmt.Errorf("failed to write deps file: %w", err)
+				}
+				if analyzeFlags.outputFormat != "json" && analyzeFlags.outputFormat != "yaml" {
+					fmt.Printf("\nWrote %d patches to %s\n", len(directPatches), analyzeFlags.outputDeps)
+				}
+			}
+
+			if analyzeFlags.outputProperties != "" && len(propertyPatches) > 0 {
+				if err := writePropertiesFile(analyzeFlags.outputProperties, propertyPatches); err != nil {
+					return fmt.Errorf("failed to write properties file: %w", err)
+				}
+				if analyzeFlags.outputFormat != "json" && analyzeFlags.outputFormat != "yaml" {
+					fmt.Printf("Wrote %d properties to %s\n", len(propertyPatches), analyzeFlags.outputProperties)
+				}
 			}
 
 			return nil
@@ -112,82 +127,12 @@ Examples:
 	flagSet := cmd.Flags()
 	flagSet.StringVar(&analyzeFlags.patches, "patches", "", "Space-separated list of patches to analyze (groupID@artifactID@version)")
 	flagSet.StringVar(&analyzeFlags.patchFile, "patch-file", "", "File containing patches to analyze")
-	flagSet.StringVar(&analyzeFlags.outputFormat, "output", "human", "Output format: human or yaml")
+	flagSet.StringVar(&analyzeFlags.outputFormat, "output", "human", "Output format: human, json, or yaml")
 	flagSet.StringVar(&analyzeFlags.outputDeps, "output-deps", "", "Write recommended dependency patches to this file")
 	flagSet.StringVar(&analyzeFlags.outputProperties, "output-properties", "", "Write recommended property patches to this file")
 	flagSet.BoolVar(&analyzeFlags.searchProperties, "search-properties", false, "Search for properties in nearby POM files")
 
 	return cmd
-}
-
-func outputAnalysisReport(analysis *pkg.AnalysisResult, directPatches []pkg.Patch, propertyPatches map[string]string) {
-	fmt.Println("")
-	fmt.Println("Patch Recommendations")
-	fmt.Println("=====================")
-	fmt.Println("")
-
-	if len(propertyPatches) > 0 {
-		fmt.Println("Property Updates:")
-		fmt.Println("-----------------")
-		for prop, version := range propertyPatches {
-			currentValue := analysis.Properties[prop]
-			if currentValue != "" {
-				fmt.Printf("  %s: %s -> %s\n", prop, currentValue, version)
-			} else {
-				fmt.Printf("  %s: (new) -> %s\n", prop, version)
-			}
-
-			// Show affected dependencies
-			affected := analysis.GetAffectedDependencies(prop)
-			if len(affected) > 0 {
-				fmt.Printf("    Affects %d dependencies:\n", len(affected))
-				for _, dep := range affected {
-					fmt.Printf("      - %s:%s\n", dep.GroupID, dep.ArtifactID)
-				}
-			}
-		}
-		fmt.Println()
-	}
-
-	if len(directPatches) > 0 {
-		fmt.Println("Direct Dependency Updates:")
-		fmt.Println("--------------------------")
-		for _, patch := range directPatches {
-			depKey := fmt.Sprintf("%s:%s", patch.GroupID, patch.ArtifactID)
-			if dep, exists := analysis.Dependencies[depKey]; exists {
-				fmt.Printf("  %s:%s: %s -> %s\n",
-					patch.GroupID, patch.ArtifactID, dep.Version, patch.Version)
-			} else {
-				fmt.Printf("  %s:%s: (new) -> %s\n",
-					patch.GroupID, patch.ArtifactID, patch.Version)
-			}
-		}
-	}
-
-	fmt.Printf("\nSummary: %d property updates, %d direct dependency updates\n",
-		len(propertyPatches), len(directPatches))
-}
-
-func outputYAML(directPatches []pkg.Patch, propertyPatches map[string]string) {
-	result := map[string]interface{}{}
-
-	if len(directPatches) > 0 {
-		result["patches"] = directPatches
-	}
-
-	if len(propertyPatches) > 0 {
-		props := []pkg.PropertyPatch{}
-		for k, v := range propertyPatches {
-			props = append(props, pkg.PropertyPatch{
-				Property: k,
-				Value:    v,
-			})
-		}
-		result["properties"] = props
-	}
-
-	output, _ := yaml.Marshal(result)
-	fmt.Println(string(output))
 }
 
 func writeDepsFile(filename string, patches []pkg.Patch) error {
@@ -224,7 +169,7 @@ func writeDepsFile(filename string, patches []pkg.Patch) error {
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(filename, data, 0644)
+	return os.WriteFile(filename, data, 0600)
 }
 
 func writePropertiesFile(filename string, properties map[string]string) error {
@@ -262,5 +207,5 @@ func writePropertiesFile(filename string, properties map[string]string) error {
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(filename, data, 0644)
+	return os.WriteFile(filename, data, 0600)
 }
