@@ -60,6 +60,14 @@ type Issue struct {
 	Property        string   `json:"property,omitempty" yaml:"property,omitempty"` // For property-based deps
 }
 
+// VersionConflict represents a version inconsistency in patches
+type VersionConflict struct {
+	GroupID         string
+	RequestedVersions map[string]string // artifactId -> version
+	RecommendedAction string            // "update_bom" or "resolve_manually"
+	BOMCandidate     *BOMInfo           // Suggested BOM to update instead
+}
+
 // UnfixableIssue represents an issue that cannot be automatically fixed
 type UnfixableIssue struct {
 	Dependency string `json:"dependency" yaml:"dependency"`
