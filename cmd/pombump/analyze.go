@@ -1,3 +1,4 @@
+// Package pombump provides Maven POM analysis and dependency patching commands
 package pombump
 
 import (
@@ -21,6 +22,7 @@ type analyzeCLIFlags struct {
 
 var analyzeFlags analyzeCLIFlags
 
+// AnalyzeCmd creates the analyze command for dependency analysis and patching
 func AnalyzeCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "analyze <pom-file>",

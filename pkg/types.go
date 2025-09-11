@@ -62,10 +62,10 @@ type Issue struct {
 
 // VersionConflict represents a version inconsistency in patches
 type VersionConflict struct {
-	GroupID         string
+	GroupID           string
 	RequestedVersions map[string]string // artifactId -> version
 	RecommendedAction string            // "update_bom" or "resolve_manually"
-	BOMCandidate     *BOMInfo           // Suggested BOM to update instead
+	BOMCandidate      *BOMInfo          // Suggested BOM to update instead
 }
 
 // UnfixableIssue represents an issue that cannot be automatically fixed

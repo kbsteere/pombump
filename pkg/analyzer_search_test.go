@@ -48,7 +48,7 @@ func TestAnalyzeProjectPath(t *testing.T) {
 
 	// Parent POM with properties
 	parentDir := filepath.Join(tmpDir, "parent")
-	require.NoError(t, os.MkdirAll(parentDir, 0755))
+	require.NoError(t, os.MkdirAll(parentDir, 0750))
 	parentPom := `<?xml version="1.0" encoding="UTF-8"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0">
     <parent>
@@ -80,7 +80,7 @@ func TestAnalyzeProjectPath(t *testing.T) {
 
 	// Module1 POM using properties
 	module1Dir := filepath.Join(tmpDir, "module1")
-	require.NoError(t, os.MkdirAll(module1Dir, 0755))
+	require.NoError(t, os.MkdirAll(module1Dir, 0750))
 	module1Pom := `<?xml version="1.0" encoding="UTF-8"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0">
     <parent>
@@ -114,7 +114,7 @@ func TestAnalyzeProjectPath(t *testing.T) {
 
 	// Module2 with submodule
 	module2Dir := filepath.Join(tmpDir, "module2", "submodule")
-	require.NoError(t, os.MkdirAll(module2Dir, 0755))
+	require.NoError(t, os.MkdirAll(module2Dir, 0750))
 	module2Pom := `<?xml version="1.0" encoding="UTF-8"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0">
     <artifactId>submodule</artifactId>
@@ -208,7 +208,7 @@ func TestFindProjectRoot(t *testing.T) {
 	otherDir := filepath.Join(tmpDir, "other")
 
 	require.NoError(t, os.MkdirAll(submoduleDir, 0755))
-	require.NoError(t, os.MkdirAll(otherDir, 0755))
+	require.NoError(t, os.MkdirAll(otherDir, 0750))
 
 	// Create POM files
 	pomContent := `<?xml version="1.0" encoding="UTF-8"?>
@@ -261,7 +261,7 @@ func TestFindPropertyLocation(t *testing.T) {
 
 	// Create project structure
 	parentDir := filepath.Join(tmpDir, "parent")
-	require.NoError(t, os.MkdirAll(parentDir, 0755))
+	require.NoError(t, os.MkdirAll(parentDir, 0750))
 
 	// Root POM with some properties
 	rootPom := `<?xml version="1.0" encoding="UTF-8"?>
@@ -316,7 +316,7 @@ func TestSearchForPropertiesSkipsHiddenAndBuildDirs(t *testing.T) {
 	validDir := filepath.Join(tmpDir, "src")
 
 	for _, dir := range []string{hiddenDir, targetDir, nodeDir, validDir} {
-		require.NoError(t, os.MkdirAll(dir, 0755))
+		require.NoError(t, os.MkdirAll(dir, 0750))
 	}
 
 	// Create POMs in each directory

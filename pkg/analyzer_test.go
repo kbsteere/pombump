@@ -306,7 +306,7 @@ func TestGetAffectedDependencies(t *testing.T) {
 
 func TestAnalyzeProjectWithBOMs(t *testing.T) {
 	ctx := context.Background()
-	
+
 	project := &gopom.Project{
 		DependencyManagement: &gopom.DependencyManagement{
 			Dependencies: &[]gopom.Dependency{
@@ -339,16 +339,16 @@ func TestAnalyzeProjectWithBOMs(t *testing.T) {
 			},
 		},
 	}
-	
+
 	result, err := AnalyzeProject(ctx, project)
 	require.NoError(t, err)
-	
+
 	// Should detect 2 BOMs
 	assert.Len(t, result.BOMs, 2)
-	
+
 	// Should have 2 dependencies (netty-handler from dependencyManagement, netty-codec from dependencies)
 	assert.Len(t, result.Dependencies, 2)
-	
+
 	// Verify BOM info
 	foundNettyBom := false
 	foundSpringBom := false

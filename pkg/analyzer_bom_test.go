@@ -273,7 +273,7 @@ func TestAnalysisOutputConversion(t *testing.T) {
 // was creating inconsistent individual patches instead of BOM updates
 func TestNeo4jStyleBOMScenario(t *testing.T) {
 	ctx := context.Background()
-	
+
 	// Simulate Neo4j project structure with netty BOM
 	project := &gopom.Project{
 		DependencyManagement: &gopom.DependencyManagement{
@@ -294,13 +294,13 @@ func TestNeo4jStyleBOMScenario(t *testing.T) {
 				Version:    "4.1.94.Final", // Managed by BOM
 			},
 			{
-				GroupID:    "io.netty", 
+				GroupID:    "io.netty",
 				ArtifactID: "netty-codec-http2",
 				Version:    "4.1.94.Final", // Managed by BOM
 			},
 			{
 				GroupID:    "io.netty",
-				ArtifactID: "netty-codec-compression", 
+				ArtifactID: "netty-codec-compression",
 				Version:    "4.1.94.Final", // Managed by BOM
 			},
 			{
@@ -310,15 +310,15 @@ func TestNeo4jStyleBOMScenario(t *testing.T) {
 			},
 		},
 	}
-	
+
 	result, err := AnalyzeProject(ctx, project)
 	require.NoError(t, err)
-	
+
 	// Should detect the netty BOM
 	require.Len(t, result.BOMs, 1)
 	assert.Equal(t, "io.netty", result.BOMs[0].GroupID)
 	assert.Equal(t, "netty-bom", result.BOMs[0].ArtifactID)
-	
+
 	t.Run("old behavior - inconsistent individual patches", func(t *testing.T) {
 		// This simulates what the automation was doing wrong:
 		// Creating individual patches with different versions
@@ -329,7 +329,7 @@ func TestNeo4jStyleBOMScenario(t *testing.T) {
 				Version:    "4.1.100.Final", // Different version!
 			},
 			{
-				GroupID:    "io.netty", 
+				GroupID:    "io.netty",
 				ArtifactID: "netty-codec-compression",
 				Version:    "4.1.118.Final", // Different version!
 			},
@@ -340,22 +340,22 @@ func TestNeo4jStyleBOMScenario(t *testing.T) {
 			},
 			{
 				GroupID:    "org.junit.jupiter",
-				ArtifactID: "junit-jupiter", 
+				ArtifactID: "junit-jupiter",
 				Version:    "5.9.0", // This one is fine
 			},
 		}
-		
+
 		directPatches, propertyPatches := PatchStrategy(ctx, result, problemPatches)
-		
+
 		// BOM-first strategy should detect the version conflicts
 		// and recommend a single BOM update instead of individual patches
 		assert.Len(t, propertyPatches, 0) // No property updates needed
-		
+
 		// Should have:
-		// 1. BOM update recommendation (netty-bom -> 4.1.118.Final) 
+		// 1. BOM update recommendation (netty-bom -> 4.1.118.Final)
 		// 2. junit direct patch (not part of netty group)
 		assert.Len(t, directPatches, 2)
-		
+
 		// Find the BOM recommendation
 		var bomPatch *Patch
 		var junitPatch *Patch
@@ -363,10 +363,10 @@ func TestNeo4jStyleBOMScenario(t *testing.T) {
 			if patch.GroupID == "io.netty" && patch.ArtifactID == "netty-bom" {
 				bomPatch = &directPatches[i]
 			} else if patch.GroupID == "org.junit.jupiter" && patch.ArtifactID == "junit-jupiter" {
-				junitPatch = &directPatches[i]  
+				junitPatch = &directPatches[i]
 			}
 		}
-		
+
 		// Should recommend BOM update with highest version
 		require.NotNil(t, bomPatch, "Expected BOM update recommendation")
 		assert.Equal(t, "io.netty", bomPatch.GroupID)
@@ -374,18 +374,18 @@ func TestNeo4jStyleBOMScenario(t *testing.T) {
 		assert.Equal(t, "4.1.118.Final", bomPatch.Version) // Highest of the requested versions
 		assert.Equal(t, "pom", bomPatch.Type)
 		assert.Equal(t, "import", bomPatch.Scope)
-		
-		// Should still have junit patch 
+
+		// Should still have junit patch
 		require.NotNil(t, junitPatch, "Expected junit patch")
 		assert.Equal(t, "5.9.0", junitPatch.Version)
 	})
-	
+
 	t.Run("ideal behavior - consistent versions", func(t *testing.T) {
 		// This simulates what should happen with consistent versions
 		consistentPatches := []Patch{
 			{
 				GroupID:    "io.netty",
-				ArtifactID: "netty-codec-http2", 
+				ArtifactID: "netty-codec-http2",
 				Version:    "4.1.118.Final", // Same version
 			},
 			{
@@ -394,7 +394,7 @@ func TestNeo4jStyleBOMScenario(t *testing.T) {
 				Version:    "4.1.118.Final", // Same version
 			},
 			{
-				GroupID:    "io.netty", 
+				GroupID:    "io.netty",
 				ArtifactID: "netty-handler",
 				Version:    "4.1.118.Final", // Same version
 			},
@@ -404,14 +404,14 @@ func TestNeo4jStyleBOMScenario(t *testing.T) {
 				Version:    "5.9.0",
 			},
 		}
-		
+
 		directPatches, propertyPatches := PatchStrategy(ctx, result, consistentPatches)
-		
+
 		// With consistent versions, no version conflicts should be detected
 		// So it should fall back to normal direct patching
 		assert.Len(t, propertyPatches, 0)
 		assert.Len(t, directPatches, 4) // All as direct patches
-		
+
 		// Should not recommend BOM update
 		foundBomPatch := false
 		for _, patch := range directPatches {
@@ -426,7 +426,7 @@ func TestNeo4jStyleBOMScenario(t *testing.T) {
 // TestDetectVersionConflicts tests the core conflict detection logic
 func TestDetectVersionConflicts(t *testing.T) {
 	ctx := context.Background()
-	
+
 	result := &AnalysisResult{
 		BOMs: []BOMInfo{
 			{
@@ -438,7 +438,7 @@ func TestDetectVersionConflicts(t *testing.T) {
 			},
 		},
 	}
-	
+
 	t.Run("detects version conflicts", func(t *testing.T) {
 		patches := []Patch{
 			{
@@ -457,23 +457,23 @@ func TestDetectVersionConflicts(t *testing.T) {
 				Version:    "4.13.3",
 			},
 		}
-		
+
 		conflicts := detectVersionConflicts(ctx, result, patches)
-		
+
 		// Should detect one conflict for io.netty group
 		assert.Len(t, conflicts, 1)
-		
+
 		conflict := conflicts[0]
 		assert.Equal(t, "io.netty", conflict.GroupID)
 		assert.Equal(t, "update_bom", conflict.RecommendedAction)
 		assert.NotNil(t, conflict.BOMCandidate)
 		assert.Equal(t, "netty-bom", conflict.BOMCandidate.ArtifactID)
-		
+
 		// Should have both versions in requested versions
 		assert.Equal(t, "4.1.100.Final", conflict.RequestedVersions["netty-handler"])
 		assert.Equal(t, "4.1.118.Final", conflict.RequestedVersions["netty-codec"])
 	})
-	
+
 	t.Run("no conflicts with same versions", func(t *testing.T) {
 		patches := []Patch{
 			{
@@ -487,7 +487,7 @@ func TestDetectVersionConflicts(t *testing.T) {
 				Version:    "4.1.118.Final",
 			},
 		}
-		
+
 		conflicts := detectVersionConflicts(ctx, result, patches)
 		assert.Len(t, conflicts, 0)
 	})
@@ -514,7 +514,7 @@ func TestFindBOMForGroup(t *testing.T) {
 			},
 		},
 	}
-	
+
 	tests := []struct {
 		name           string
 		groupID        string
@@ -539,7 +539,7 @@ func TestFindBOMForGroup(t *testing.T) {
 			found:   false,
 		},
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			bom := findBOMForGroup(result, tt.groupID)
@@ -586,7 +586,7 @@ func TestCalculateOptimalBOMVersion(t *testing.T) {
 			expectedVersion: "2.0.0",
 		},
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := calculateOptimalBOMVersion(tt.requestedVersions)

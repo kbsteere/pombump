@@ -15,9 +15,12 @@ import (
 type OutputFormat string
 
 const (
+	// FormatHuman represents human-readable output format
 	FormatHuman OutputFormat = "human"
-	FormatJSON  OutputFormat = "json"
-	FormatYAML  OutputFormat = "yaml"
+	// FormatJSON represents JSON output format  
+	FormatJSON OutputFormat = "json"
+	// FormatYAML represents YAML output format
+	FormatYAML OutputFormat = "yaml"
 )
 
 // Write outputs the analysis in the specified format
@@ -52,8 +55,8 @@ func (a *AnalysisOutput) Write(format string, w io.Writer) error {
 // WriteHuman outputs human-readable format
 func (a *AnalysisOutput) WriteHuman(w io.Writer) error {
 	// Header section
-	header := fmt.Sprintf("\nPOM Analysis: %s\nTimestamp: %s\n%s\n", 
-		a.POMFile, 
+	header := fmt.Sprintf("\nPOM Analysis: %s\nTimestamp: %s\n%s\n",
+		a.POMFile,
 		a.Timestamp.Format("2006-01-02 15:04:05"),
 		strings.Repeat("=", 60))
 	if _, err := fmt.Fprint(w, header); err != nil {
@@ -63,14 +66,14 @@ func (a *AnalysisOutput) WriteHuman(w io.Writer) error {
 	// Dependencies summary
 	deps := fmt.Sprintf("\nDependencies Summary:\n  Total: %d\n  Direct: %d\n  Using properties: %d\n",
 		a.Dependencies.Total, a.Dependencies.Direct, a.Dependencies.UsingProperties)
-	
+
 	if a.Dependencies.FromBOMs > 0 {
 		deps += fmt.Sprintf("  From BOMs: %d\n", a.Dependencies.FromBOMs)
 	}
 	if a.Dependencies.Transitive > 0 {
 		deps += fmt.Sprintf("  Transitive: %d\n", a.Dependencies.Transitive)
 	}
-	
+
 	if _, err := fmt.Fprint(w, deps); err != nil {
 		return err
 	}
@@ -105,9 +108,9 @@ func (a *AnalysisOutput) WriteHuman(w io.Writer) error {
 	if len(a.Issues) > 0 {
 		issues := fmt.Sprintf("\nIssues Found: %d\n%s\n", len(a.Issues), strings.Repeat("-", 40))
 		for i, issue := range a.Issues {
-			issues += fmt.Sprintf("\n%d. %s (%s)\n   Current: %s\n", 
+			issues += fmt.Sprintf("\n%d. %s (%s)\n   Current: %s\n",
 				i+1, issue.Dependency, issue.Type, issue.CurrentVersion)
-			
+
 			if issue.RequiredVersion != "" {
 				issues += fmt.Sprintf("   Required: %s\n", issue.RequiredVersion)
 			}
@@ -153,7 +156,7 @@ func (a *AnalysisOutput) WriteHuman(w io.Writer) error {
 				patches += fmt.Sprintf("  %s:%s -> %s\n", patch.GroupID, patch.ArtifactID, patch.Version)
 			}
 		}
-		
+
 		if _, err := fmt.Fprint(w, patches); err != nil {
 			return err
 		}
@@ -174,7 +177,7 @@ func (a *AnalysisOutput) WriteHuman(w io.Writer) error {
 	if len(a.CannotFix) > 0 {
 		cannotFix := "\nCannot Fix (Manual Intervention Required):\n"
 		for _, issue := range a.CannotFix {
-			cannotFix += fmt.Sprintf("  ✗ %s\n    Reason: %s\n    Action: %s\n", 
+			cannotFix += fmt.Sprintf("  ✗ %s\n    Reason: %s\n    Action: %s\n",
 				issue.Dependency, issue.Reason, issue.Action)
 		}
 		if _, err := fmt.Fprint(w, cannotFix); err != nil {
@@ -185,7 +188,7 @@ func (a *AnalysisOutput) WriteHuman(w io.Writer) error {
 	// Summary
 	fixable := len(a.Patches) + len(a.PropertyUpdates)
 	unfixable := len(a.CannotFix)
-	summary := fmt.Sprintf("\nSummary:\n%s\n  Fixable issues: %d\n  Unfixable issues: %d\n", 
+	summary := fmt.Sprintf("\nSummary:\n%s\n  Fixable issues: %d\n  Unfixable issues: %d\n",
 		strings.Repeat("-", 40), fixable, unfixable)
 
 	if fixable > 0 {
